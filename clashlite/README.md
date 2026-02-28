@@ -1,14 +1,16 @@
 # clashlite (Linux / C)
 
-一个 **最小可用** 的「类 Clash」透明代理核心原型（MVP），目标是把两件事跑通：
+一个 **类 Clash 核心原型（MVP）**，目标是用尽量少的依赖把三件事跑通：
 
-1) **FakeDNS**：本地 DNS 服务器对匹配域名返回“假 IP”（默认使用 `198.18.0.0/15` 地址池）并维护映射。
-2) **透明代理**：配合 `iptables REDIRECT` 把本机 TCP 连接转发到本地端口；程序通过 `SO_ORIGINAL_DST` 取得原目标（可能是假 IP），再根据 FakeDNS 映射把连接转发到真实目标。
+1. **FakeDNS**（UDP DNS 服务器）：匹配规则的域名返回“假 IP”（默认 `198.18.0.0/15`），并维护映射。
+2. **TCP 透明代理**：配合 `iptables` 把 TCP 流量透明送到本地端口；程序通过 `SO_ORIGINAL_DST` 取回原目标，然后按需走 FakeDNS 映射并转发。
+3. **UDP 透明代理**：通过 `TPROXY + IP_ORIGDSTADDR` 拿到每个 UDP 包的原目标，再使用 **SOCKS5 UDP ASSOCIATE** 转发。
 
 > 说明：
-> - 目前实现 **IPv4 + TCP** 为主；UDP 仅用于 DNS。
-> - 上游代理目前支持 **SOCKS5 (no-auth)** 或直连（可选）。
-> - 这是“网络代理内核”，不是 WireGuard 那种 L3 VPN。它可以作为“系统级代理/VPN感”使用。
+> - 这是“系统级透明代理/VPN感”，不是 WireGuard/OpenVPN 那种真正的 L3 VPN。
+> - 你如果坚持“真正 /dev/net/tun + tun2socks”的 TUN 模式，需要用户态 TCP/IP 栈（工程量大）。本项目先用 Linux 内核协议栈 + TPROXY 实现路由模式。
+
+---
 
 ## 编译
 
@@ -19,44 +21,37 @@ make
 
 生成：`./clashlite`
 
+---
+
 ## 配置
 
-复制示例配置：
+复制示例：
 
 ```bash
 cp config.example.ini config.ini
 ```
 
 关键配置项：
-- `dns_listen`：FakeDNS 监听地址（建议 127.0.0.1:1053）
-- `tproxy_listen`：透明代理监听地址（127.0.0.1:12345）
-- `upstream_dns`：上游 DNS（例如 223.5.5.5:53）
-- `socks5_upstream`：可选，上游 SOCKS5（例如 127.0.0.1:7890）
-- `fake_range`：假 IP 池（默认 198.18.0.0/15）
-- `fake_suffix_rules`：哪些域名走 FakeDNS（逗号分隔后缀），留空表示全部 A 查询都 Fake
+- `dns_listen`：FakeDNS 监听（建议 `127.0.0.1:1053`）
+- `tproxy_listen`：TCP 透明代理监听（例如 `0.0.0.0:12345` 用于网关模式）
+- `udp_listen`：UDP 透明代理监听（例如 `0.0.0.0:12346`）
+- `upstream_dns`：上游 DNS（用于解析真实 IP）
+- `socks5_upstream`：上游 SOCKS5（UDP 必须；TCP 可选）
+- `fake_range`：假 IP 池（默认 `198.18.0.0/15`）
+- `fake_suffix_rules`：逗号分隔后缀规则；空表示全部 A 查询都 Fake
+- `fake_rules_file`：可选规则文件（每行一个域名/后缀，支持 `#` 注释）
 
-## 运行（需要配合 iptables）
+---
 
-### 1) 启动 clashlite
+## 运行
 
 ```bash
 ./clashlite -c config.ini
 ```
 
-### 2) 设置系统 DNS 指向 FakeDNS
+### A) 仅代理本机（简单模式）
 
-如果你用 `systemd-resolved`，建议用 `resolvectl`：
-
-```bash
-sudo resolvectl dns lo 127.0.0.1
-sudo resolvectl domain lo ~.
-```
-
-或者把 `/etc/resolv.conf` 指向 `127.0.0.1`（方式因发行版不同而异）。
-
-### 3) iptables 透明转发（本机 OUTPUT REDIRECT）
-
-脚本（可按需改）：
+用 nat OUTPUT REDIRECT 把本机 TCP 送进代理：
 
 ```bash
 sudo bash scripts/iptables_setup.sh \
@@ -65,31 +60,69 @@ sudo bash scripts/iptables_setup.sh \
   --bypass-uid $(id -u)
 ```
 
-> 重要：一定要 **绕过本程序自身**（bypass uid 或 mark），否则会造成回环。
-
 清理：
 
 ```bash
 sudo bash scripts/iptables_cleanup.sh
 ```
 
-## 验证
+> 该脚本只处理 TCP（OUTPUT）。UDP 透明代理更推荐走下面的“网关/路由模式”。
+
+### B) 网关/路由模式（推荐，支持 UDP）
+
+用 TPROXY 把 **转发流量**（PREROUTING）送入 clashlite：
 
 ```bash
-# 让系统 DNS 走 FakeDNS 后
-nslookup example.com 127.0.0.1 -port=1053
-
-# 再 curl，看是否被透明代理接管并转发
-curl -I https://example.com
+sudo bash scripts/gateway_tproxy_setup.sh \
+  --tcp-port 12345 \
+  --udp-port 12346 \
+  --mark 1 \
+  --table 100
 ```
 
-## 你需要确认的“不确定点”（后续迭代前请回复）
+清理：
 
-为了避免我“猜需求”，请你回答：
-1) 透明代理你更倾向 `iptables REDIRECT`（本机简单）还是 `TPROXY + policy routing`（更通用，可做网关）？
-2) 需要 UDP 透明代理吗（QUIC/UDP应用）？
-3) FakeDNS 规则：是“全部域名都 fake”，还是只 fake 某些列表（类似 Clash 的 ruleset）？
-4) 上游你希望支持哪些协议：只 SOCKS5？还是需要 Shadowsocks/Vmess/Trojan ？
+```bash
+sudo bash scripts/gateway_tproxy_cleanup.sh --mark 1 --table 100
+```
 
-## 免责声明
+> 网关模式要求：
+> - 其他设备把本机设为默认网关（或策略路由到本机）
+> - `net.ipv4.ip_forward=1`
+
+---
+
+## DNS 指向 FakeDNS
+
+如果你用 `systemd-resolved`：
+
+```bash
+sudo resolvectl dns lo 127.0.0.1
+sudo resolvectl domain lo ~.
+```
+
+或者按发行版修改 `/etc/resolv.conf`/NetworkManager。
+
+---
+
+## 重要限制（MVP 必读）
+
+- **仅 IPv4**
+- UDP：目前为每个 (client, original_dst) 创建会话；在“多个 client 同时访问同一个远端 IP:PORT”的场景下，透明回包可能出现冲突（后续可通过更复杂的端口复用/源地址控制改进）。
+- SOCKS5：只实现 **no-auth**。
+- FakeDNS：只处理 A/IN；其他类型直接转发上游。
+
+---
+
+## 目录结构
+
+- `src/dns.c`：FakeDNS（支持转发）
+- `src/tproxy.c`：TCP 透明代理（SO_ORIGINAL_DST + 直连/SOCKS5）
+- `src/udp_tproxy.c`：UDP 透明代理（TPROXY + IP_ORIGDSTADDR + SOCKS5 UDP ASSOCIATE）
+- `scripts/`：iptables/policy routing 辅助脚本
+
+---
+
+## 合规声明
+
 仅用于你拥有授权的网络环境/合规用途。请遵守所在地法律法规与网络使用政策。

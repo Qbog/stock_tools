@@ -71,6 +71,7 @@ static int build_fake_a_response(
     uint8_t *out,
     int out_sz
 ) {
+    (void)qname; // 当前实现不需要单独使用 qname；保留参数便于后续扩展
     if (req_len < (int)sizeof(dns_hdr_t)) return -1;
     if (out_sz < req_len + 16) return -1;
 

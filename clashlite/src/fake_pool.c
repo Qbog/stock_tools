@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 /*
  * Fake IP 地址池：从一个 CIDR 中顺序分配。

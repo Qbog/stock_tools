@@ -20,11 +20,18 @@
 
 typedef struct {
     char dns_listen[64];          // e.g. 127.0.0.1:1053
-    char tproxy_listen[64];       // e.g. 127.0.0.1:12345
+    char tproxy_listen[64];       // e.g. 127.0.0.1:12345 (TCP)
+    char udp_listen[64];          // e.g. 0.0.0.0:12346 (UDP transparent)
     char upstream_dns[64];        // e.g. 223.5.5.5:53
-    char socks5_upstream[64];     // e.g. 127.0.0.1:7890 (optional)
+    char socks5_upstream[64];     // e.g. 127.0.0.1:7890 (required for UDP, optional for TCP)
     char fake_range_cidr[32];     // e.g. 198.18.0.0/15
-    char fake_suffix_rules[1024]; // comma-separated suffix list; empty means all
+
+    // FakeDNS rules:
+    // - fake_suffix_rules: comma-separated suffix list (MVP)
+    // - fake_rules_file: optional; if set, load one suffix/domain per line (lines starting with # ignored)
+    char fake_suffix_rules[1024];
+    char fake_rules_file[256];
+
     int fake_ttl;
     int verbose;
 } cl_config_t;
@@ -48,6 +55,7 @@ int cl_fake_pool_contains(const cl_fake_pool_t *pool, uint32_t ip_nbo);
 
 // --- domain rules ---
 int cl_rules_parse(const char *csv, char rules[][CL_MAX_DOMAIN], int max_rules);
+int cl_rules_load_file(const char *path, char rules[][CL_MAX_DOMAIN], int max_rules);
 int cl_rules_match_suffix(const char *domain, char rules[][CL_MAX_DOMAIN], int n_rules);
 
 // --- mapping (domain<->fake_ip) ---
@@ -61,6 +69,9 @@ int cl_dns_run(const cl_config_t *cfg, cl_fake_pool_t *pool, char rules[][CL_MAX
 
 // --- TCP transparent proxy ---
 int cl_tproxy_run(const cl_config_t *cfg, const cl_fake_pool_t *pool);
+
+// --- UDP transparent proxy (SOCKS5 UDP ASSOCIATE) ---
+int cl_udp_tproxy_run(const cl_config_t *cfg);
 
 // --- helpers ---
 int cl_parse_hostport(const char *s, char *host, int host_sz, int *port);

@@ -2,6 +2,7 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <linux/in.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -42,7 +43,7 @@ typedef struct {
     cl_fake_pool_t pool;
 } worker_arg_t;
 
-static int connect_tcp_ipv4(const char *ip, int port) {
+static int connect_tcp_ipv4_nbo(uint32_t ip_nbo, int port) {
     int s = socket(AF_INET, SOCK_STREAM, 0);
     if (s < 0) return -1;
 
@@ -50,10 +51,7 @@ static int connect_tcp_ipv4(const char *ip, int port) {
     memset(&a, 0, sizeof(a));
     a.sin_family = AF_INET;
     a.sin_port = htons((uint16_t)port);
-    if (inet_pton(AF_INET, ip, &a.sin_addr) != 1) {
-        close(s);
-        return -1;
-    }
+    a.sin_addr.s_addr = ip_nbo;
 
     if (connect(s, (struct sockaddr *)&a, sizeof(a)) < 0) {
         close(s);
@@ -68,12 +66,11 @@ static int connect_tcp_ipv4(const char *ip, int port) {
  * - 发送 CONNECT 请求到目标 IPv4:port
  */
 static int socks5_connect(const char *socks_host, int socks_port, uint32_t dst_ip_nbo, uint16_t dst_port) {
-    char ipbuf[INET_ADDRSTRLEN];
-    struct in_addr ia;
-    ia.s_addr = dst_ip_nbo;
-    snprintf(ipbuf, sizeof(ipbuf), "%s", inet_ntoa(ia));
+    // 连接 SOCKS5 服务器（MVP：只支持 socks_host 为 IPv4 字符串）
+    struct in_addr sh;
+    if (inet_pton(AF_INET, socks_host, &sh) != 1) return -1;
 
-    int s = connect_tcp_ipv4(socks_host, socks_port);
+    int s = connect_tcp_ipv4_nbo(sh.s_addr, socks_port);
     if (s < 0) return -1;
 
     uint8_t buf[262];
@@ -235,9 +232,7 @@ static void *worker_main(void *arg) {
         }
         rfd = socks5_connect(sh, sp, real_ip, (uint16_t)dst_port);
     } else {
-        struct in_addr ia;
-        ia.s_addr = real_ip;
-        rfd = connect_tcp_ipv4(inet_ntoa(ia), dst_port);
+        rfd = connect_tcp_ipv4_nbo(real_ip, dst_port);
     }
 
     if (rfd < 0) {
@@ -286,6 +281,15 @@ int cl_tproxy_run(const cl_config_t *cfg, const cl_fake_pool_t *pool) {
 
     int one = 1;
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+
+    // 如果你用的是 TPROXY（网关模式），监听 socket 需要开启 IP_TRANSPARENT，
+    // 否则内核可能拒绝把“目的地址不是本机”的连接交给我们。
+    // 在 OUTPUT+REDIRECT（仅代理本机）场景里，它通常不是必须。
+    if (setsockopt(s, SOL_IP, IP_TRANSPARENT, &one, sizeof(one)) != 0) {
+        if (cfg->verbose) {
+            cl_log(cfg->verbose, "setsockopt(IP_TRANSPARENT) failed (need CAP_NET_ADMIN/root): %s", strerror(errno));
+        }
+    }
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));

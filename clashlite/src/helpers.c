@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 /*
  * 解析 host:port

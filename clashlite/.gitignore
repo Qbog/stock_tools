@@ -1,0 +1,6 @@
+# build artifacts
+clashlite
+src/*.o
+
+# local config
+config.ini

@@ -32,10 +32,12 @@ static void set_default(cl_config_t *cfg) {
     memset(cfg, 0, sizeof(*cfg));
     snprintf(cfg->dns_listen, sizeof(cfg->dns_listen), "%s", "127.0.0.1:1053");
     snprintf(cfg->tproxy_listen, sizeof(cfg->tproxy_listen), "%s", "127.0.0.1:12345");
+    snprintf(cfg->udp_listen, sizeof(cfg->udp_listen), "%s", "0.0.0.0:12346");
     snprintf(cfg->upstream_dns, sizeof(cfg->upstream_dns), "%s", "223.5.5.5:53");
     cfg->socks5_upstream[0] = '\0';
     snprintf(cfg->fake_range_cidr, sizeof(cfg->fake_range_cidr), "%s", "198.18.0.0/15");
     cfg->fake_suffix_rules[0] = '\0';
+    cfg->fake_rules_file[0] = '\0';
     cfg->fake_ttl = 60;
     cfg->verbose = 1;
 }
@@ -66,6 +68,8 @@ int cl_load_config(const char *path, cl_config_t *cfg) {
             snprintf(cfg->dns_listen, sizeof(cfg->dns_listen), "%s", v);
         } else if (strcmp(k, "tproxy_listen") == 0) {
             snprintf(cfg->tproxy_listen, sizeof(cfg->tproxy_listen), "%s", v);
+        } else if (strcmp(k, "udp_listen") == 0) {
+            snprintf(cfg->udp_listen, sizeof(cfg->udp_listen), "%s", v);
         } else if (strcmp(k, "upstream_dns") == 0) {
             snprintf(cfg->upstream_dns, sizeof(cfg->upstream_dns), "%s", v);
         } else if (strcmp(k, "socks5_upstream") == 0) {
@@ -74,6 +78,8 @@ int cl_load_config(const char *path, cl_config_t *cfg) {
             snprintf(cfg->fake_range_cidr, sizeof(cfg->fake_range_cidr), "%s", v);
         } else if (strcmp(k, "fake_suffix_rules") == 0) {
             snprintf(cfg->fake_suffix_rules, sizeof(cfg->fake_suffix_rules), "%s", v);
+        } else if (strcmp(k, "fake_rules_file") == 0) {
+            snprintf(cfg->fake_rules_file, sizeof(cfg->fake_rules_file), "%s", v);
         } else if (strcmp(k, "fake_ttl") == 0) {
             cfg->fake_ttl = atoi(v);
         } else if (strcmp(k, "verbose") == 0) {
