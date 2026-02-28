@@ -1,0 +1,9 @@
+.openclaw/
+.clawhub/
+skills/
+skills_downloads/
+output/
+memory/
+repos/
+*.xlsx
+*.csv

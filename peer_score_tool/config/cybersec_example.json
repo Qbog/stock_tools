@@ -1,0 +1,92 @@
+{
+  "data_source": {
+    "name": "eastmoney_akshare",
+    "akshare_indicator": "按报告期"
+  },
+  "scoring": {
+    "max_score": 5,
+    "min_score": 1,
+    "missing_value_score": 1,
+    "ties": "competition",
+    "score_rule": "clamp"
+  },
+  "color_map": {
+    "5": "#63BE7B",
+    "4": "#A9D18E",
+    "3": "#FFEB84",
+    "2": "#F4B183",
+    "1": "#F8696B"
+  },
+  "categories": [
+    {
+      "name": "网络安全软件开发",
+      "companies": [
+        {"code": "688651", "name": "盛邦安全"},
+        {"code": "688561", "name": "奇安信"},
+        {"code": "688244", "name": "永信至诚"},
+        {"code": "688225", "name": "亚信安全"},
+        {"code": "688201", "name": "信安世纪"},
+        {"code": "688171", "name": "纬德信息"},
+        {"code": "688168", "name": "安博通"},
+        {"code": "688030", "name": "山石网科"},
+        {"code": "688023", "name": "安恒信息"},
+        {"code": "603232", "name": "格尔软件"},
+        {"code": "601360", "name": "三六零"},
+        {"code": "300768", "name": "迪普科技"},
+        {"code": "300579", "name": "数字认证"},
+        {"code": "300454", "name": "深信服"},
+        {"code": "300369", "name": "绿盟科技"},
+        {"code": "300352", "name": "北信源"},
+        {"code": "300311", "name": "任子行"},
+        {"code": "300229", "name": "拓尔思"},
+        {"code": "300188", "name": "国投智能"},
+        {"code": "003029", "name": "吉大正元"},
+        {"code": "002439", "name": "启明星辰"},
+        {"code": "002212", "name": "天融信"}
+      ]
+    },
+    {
+      "name": "网络安全设备",
+      "companies": [
+        {"code": "300287", "name": "飞利信"},
+        {"code": "301165", "name": "锐捷网络"},
+        {"code": "688489", "name": "三未信安"},
+        {"code": "603496", "name": "恒为信息"},
+        {"code": "300659", "name": "中孚信息"},
+        {"code": "300386", "name": "飞天诚信"},
+        {"code": "300324", "name": "旋极信息"},
+        {"code": "002912", "name": "中新赛克"},
+        {"code": "002268", "name": "电科网安"}
+      ]
+    }
+  ],
+  "metrics": [
+    {"group": "成长能力指标", "name": "净利润", "source_col": "PARENTNETPROFIT", "direction": "desc"},
+    {"group": "成长能力指标", "name": "净利润同比增长率", "source_col": "PARENTNETPROFITTZ", "direction": "desc"},
+    {"group": "成长能力指标", "name": "扣非净利润", "source_col": "KCFJCXSYJLR", "direction": "desc"},
+    {"group": "成长能力指标", "name": "扣非净利润同比增长率", "source_col": "KCFJCXSYJLRTZ", "direction": "desc"},
+    {"group": "成长能力指标", "name": "营业总收入", "source_col": "TOTALOPERATEREVE", "direction": "desc"},
+    {"group": "成长能力指标", "name": "营业总收入同比增长率", "source_col": "TOTALOPERATEREVETZ", "direction": "desc"},
+
+    {"group": "每股指标", "name": "基本每股收益", "source_col": "EPSJB", "direction": "desc"},
+    {"group": "每股指标", "name": "每股净资产", "source_col": "BPS", "direction": "desc"},
+    {"group": "每股指标", "name": "每股资本公积", "source_col": "MGZBGJ", "direction": "desc"},
+    {"group": "每股指标", "name": "每股未分配利润", "source_col": "MGWFPLR", "direction": "desc"},
+    {"group": "每股指标", "name": "每股经营现金流", "source_col": "MGJYXJJE", "direction": "desc"},
+
+    {"group": "盈利能力指标", "name": "销售毛利率", "source_col": "XSMLL", "direction": "desc"},
+    {"group": "盈利能力指标", "name": "销售净利率", "source_col": "XSJLL", "direction": "desc"},
+    {"group": "盈利能力指标", "name": "净资产收益率", "source_col": "ROEJQ", "direction": "desc"},
+
+    {"group": "营运能力指标", "name": "营业周期", "source_col": "OPERATE_CYCLE", "direction": "asc"},
+    {"group": "营运能力指标", "name": "存货周转率", "source_col": "CHZZL", "direction": "desc"},
+    {"group": "营运能力指标", "name": "存货周转天数", "source_col": "CHZZTS", "direction": "asc"},
+    {"group": "营运能力指标", "name": "应收账款周转天数", "source_col": "YSZKZZTS", "direction": "asc"},
+
+    {"group": "偿债能力指标", "name": "流动比率", "source_col": "LD", "direction": "desc"},
+    {"group": "偿债能力指标", "name": "速动比率", "source_col": "SD", "direction": "desc"},
+    {"group": "偿债能力指标", "name": "保守速动比率", "source_col": "CASH_RATIO", "direction": "desc"},
+    {"group": "偿债能力指标", "name": "产权比率", "source_col": "CQBL", "direction": "asc"},
+    {"group": "偿债能力指标", "name": "资产负载率", "source_col": "ZCFZL", "direction": "asc"}
+  ]
+}
