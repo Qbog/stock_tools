@@ -7,3 +7,5 @@ memory/
 repos/
 *.xlsx
 *.csv
+__pycache__/
+*.pyc
