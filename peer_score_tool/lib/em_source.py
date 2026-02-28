@@ -35,14 +35,12 @@ def _pick_row(df: pd.DataFrame, report_date: Optional[str]) -> pd.Series:
         d["REPORT_DATE"] = pd.to_datetime(d["REPORT_DATE"], errors="coerce")
 
     if report_date:
+        # D=强制不会退：只接受精确命中该报告期
         target = pd.to_datetime(report_date)
         hit = d[d["REPORT_DATE"] == target]
-        if not hit.empty:
-            return hit.sort_values("NOTICE_DATE", ascending=False).iloc[0]
-        hit = d[d["REPORT_DATE"] <= target]
-        if not hit.empty:
-            return hit.sort_values("REPORT_DATE", ascending=False).iloc[0]
-        return d.sort_values("REPORT_DATE", ascending=False).iloc[0]
+        if hit.empty:
+            raise KeyError("report_date_not_found")
+        return hit.sort_values("NOTICE_DATE", ascending=False).iloc[0]
 
     # default: latest full-year if present else latest
     full_year = d[d["REPORT_DATE"].dt.month.eq(12) & d["REPORT_DATE"].dt.day.eq(31)]
@@ -80,7 +78,14 @@ def fetch_em_indicator_row(
     for attempt in range(retries + 1):
         try:
             df = ak.stock_financial_analysis_indicator_em(symbol=symbol, indicator=indicator)
-            row = _pick_row(df, report_date)
+            try:
+                row = _pick_row(df, report_date)
+            except KeyError as _:
+                # 强制不回退：没有该期就按缺失处理（由上游给 0 分）
+                out = {k: float("nan") for k in columns.keys()}
+                time.sleep(pause_s)
+                return FetchResult(values=out, used_report_date="")
+
             used = pd.to_datetime(row["REPORT_DATE"]).strftime("%Y-%m-%d")
             out = {k: safe_float(row.get(v)) for k, v in columns.items()}
             time.sleep(pause_s)

@@ -108,8 +108,8 @@ def load_config(path: str) -> Config:
 def validate_config(cfg: Config) -> None:
     if cfg.scoring.max_score <= 0:
         raise ConfigError("max_score must be > 0")
-    if cfg.scoring.min_score <= 0:
-        raise ConfigError("min_score must be > 0")
+    if cfg.scoring.min_score < 0:
+        raise ConfigError("min_score must be >= 0")
     if cfg.scoring.min_score > cfg.scoring.max_score:
         raise ConfigError("min_score must be <= max_score")
     if cfg.scoring.ties not in ("competition", "dense"):
@@ -135,8 +135,10 @@ def validate_config(cfg: Config) -> None:
     if len(set(mnames)) != len(mnames):
         raise ConfigError("metric names must be unique (used as row keys)")
 
-    # ensure color map covers scores 1..5 if provided
+    # ensure color map covers the *positive* score levels if provided.
+    # If min_score=0, we allow 0 to be uncolored.
     if cfg.color_map:
-        for s in range(cfg.scoring.min_score, cfg.scoring.max_score + 1):
+        start = max(1, cfg.scoring.min_score)
+        for s in range(start, cfg.scoring.max_score + 1):
             if s not in cfg.color_map:
                 raise ConfigError(f"color_map missing score {s}")
